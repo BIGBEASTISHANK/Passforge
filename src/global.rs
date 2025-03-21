@@ -12,7 +12,7 @@ pub static mut programStartedOnce: bool = false;
 pub static mut passfileLocation: Option<String> = None;
 
 // Program version
-pub static programVersion: &str = "1.4.2";
+pub static programVersion: &str = "1.4.3";
 
 // Global application state
 pub static mut current_passfile: Option<String> = None;

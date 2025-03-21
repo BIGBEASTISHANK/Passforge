@@ -79,9 +79,29 @@ fn main() {
 // Intro screen
 fn IntroScreen() {
     // Clear terminal
-    Command::new("clear")
-        .spawn()
-        .expect("Failed to clear screen");
+    if global::current_OS == "linux" || global::current_OS == "macos" {
+        Command::new("clear")
+            .spawn()
+            .expect("Failed to clear screen");
+
+        match Command::new("clear").spawn() {
+            Ok(_) => (),
+            Err(e) => eprintln!("Failed to clear screen: {}", e),
+        }
+    } else {
+        let result = Command::new("cmd").arg("/C").arg("cls").spawn();
+
+        if result.is_err() {
+            let result = Command::new("powershell")
+                .arg("-Command")
+                .arg("Clear-Host")
+                .spawn();
+
+            if result.is_err() {
+                eprintln!("Failed to clear screen using both cmd and PowerShell.");
+            }
+        }
+    }
     sleep(Duration::from_millis(200));
 
     // Display intro

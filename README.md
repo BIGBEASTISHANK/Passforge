@@ -1,6 +1,6 @@
 # Passforge: A Rust-based Password Manager
 
-Passforge V1.4.2 is a secure password manager built with Rust, designed to help you store, manage, and generate passwords with robust encryption. It uses offline file storage to ensure your data stays safe and under your control.
+Passforge V1.4.3 is a secure password manager built with Rust, designed to help you store, manage, and generate passwords with robust encryption. It uses offline file storage to ensure your data stays safe and under your control.
 
 ## Key Features:
 - **Secure Offline Storage**: Your passwords are saved in locally encrypted files, so your data never leaves your device, providing an extra layer of privacy and security.
