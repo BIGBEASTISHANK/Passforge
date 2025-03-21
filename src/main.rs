@@ -4,6 +4,8 @@
 
 // Imports
 mod global;
+use clipboard::ClipboardContext;
+use clipboard::ClipboardProvider;
 use magic_crypt::{new_magic_crypt, MagicCryptTrait};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -96,7 +98,14 @@ fn PassfileSelector(isProgramRunning: &mut bool) {
 
     // Intro screen
     IntroScreen();
-    sleep(Duration::from_secs(2));
+
+    // Wait for intro screen
+    if unsafe { !global::programStartedOnce } {
+        sleep(Duration::from_secs(2));
+        unsafe {
+            global::programStartedOnce = true;
+        }
+    }
 
     // Passfile options
     println!("----------------------------------");
@@ -259,9 +268,13 @@ fn OpenDefaultPassfile() {
     println!("Opening file from default location!");
     println!("--------------------------------------");
 
-    let default_path = "passfiles/default.pfg";
+    let default_path = format!("{}default.pfg", unsafe {
+        global::passfileLocation
+            .as_ref()
+            .expect("Passfile location is None")
+    });
 
-    if !Path::new(default_path).exists() {
+    if !Path::new(&default_path).exists() {
         println!("Default passfile does not exist! Creating one...");
 
         let mut password = String::new();
@@ -285,16 +298,21 @@ fn OpenDefaultPassfile() {
         let encrypted_data = mc.encrypt_str_to_base64(&json_data);
 
         // Create directory if it doesn't exist
-        fs::create_dir_all("passfiles").expect("Failed to create directory");
+        fs::create_dir_all(unsafe {
+            global::passfileLocation
+                .as_ref()
+                .expect("Passfile location is None")
+        })
+        .expect("Failed to create directory");
 
         // Save to file
-        let mut file = File::create(default_path).expect("Failed to create file");
+        let mut file = File::create(&default_path).expect("Failed to create file");
         file.write_all(encrypted_data.as_bytes())
             .expect("Failed to write to file");
 
         println!("Default passfile created successfully!");
         unsafe {
-            global::current_passfile = Some(default_path.to_string());
+            global::current_passfile = Some(default_path.clone());
             global::encryption_password = Some(password);
         }
     } else {
@@ -307,7 +325,7 @@ fn OpenDefaultPassfile() {
         let password = password.trim().to_string();
 
         // Try to decrypt and open
-        if let Ok(encrypted_data) = fs::read_to_string(default_path) {
+        if let Ok(encrypted_data) = fs::read_to_string(&default_path) {
             let mc = new_magic_crypt!(&password, 256);
             match mc.decrypt_base64_to_string(&encrypted_data) {
                 Ok(decrypted_data) => {
@@ -316,14 +334,33 @@ fn OpenDefaultPassfile() {
                         Ok(_) => {
                             println!("Default passfile opened successfully!");
                             unsafe {
-                                global::current_passfile = Some(default_path.to_string());
+                                global::current_passfile = Some(default_path.clone());
                                 global::encryption_password = Some(password);
                             }
                         }
                         Err(_) => println!("Invalid passfile format!"),
                     }
                 }
-                Err(_) => println!("Incorrect password or corrupted file!"),
+                Err(_) => {
+                    println!("Incorrect password or corrupted file!");
+                    sleep(Duration::from_secs(1));
+
+                    // Want to delete file
+                    let mut delete_option = String::new();
+
+                    print!("Delete file and create new? (y/N): ");
+                    io::stdout().flush().unwrap();
+                    io::stdin()
+                        .read_line(&mut delete_option)
+                        .expect("Failed to read line");
+
+                    if delete_option.trim().to_lowercase() == "y" {
+                        fs::remove_file(default_path).expect("Failed to delete file");
+                        println!("Default passfile deleted successfully!");
+                        sleep(Duration::from_secs(2));
+                        OpenDefaultPassfile();
+                    }
+                }
             }
         } else {
             println!("Failed to read default passfile!");
@@ -547,10 +584,26 @@ fn ShowAllLogins() {
 
                                     match option.trim() {
                                         "1" => {
-                                            // Copy to clipboard functionality would require additional crates
-                                            println!(
-                                                "Clipboard copy function is under development!"
-                                            );
+                                            let mut ctx: ClipboardContext =
+                                                ClipboardProvider::new().unwrap();
+                                            ctx.set_contents(entry.password.to_owned()).unwrap();
+
+                                            // Check if copied successfully
+                                            match ctx.get_contents() {
+                                                Ok(contents) => {
+                                                    if contents == entry.password {
+                                                        println!(
+                                                            "Successfully copied to clipboard!"
+                                                        );
+                                                    } else {
+                                                        println!("Failed to copy to clipboard.");
+                                                    }
+                                                }
+                                                Err(_) => {
+                                                    println!("Error reading clipboard content.")
+                                                }
+                                            }
+
                                             sleep(Duration::from_secs(2));
                                         }
                                         "2" => {
@@ -682,7 +735,7 @@ fn DeleteLoginEntry(title: &str) {
                 let mc = new_magic_crypt!(password, 256);
                 if let Ok(decrypted_data) = mc.decrypt_base64_to_string(&encrypted_data) {
                     if let Ok(mut passfile) = serde_json::from_str::<PassFile>(&decrypted_data) {
-                        print!("Are you sure you want to delete '{}' (y/n)? ", title);
+                        print!("Are you sure you want to delete '{}' (y/N)? ", title);
                         io::stdout().flush().unwrap();
 
                         let mut confirmation = String::new();
@@ -738,7 +791,7 @@ fn GeneratePassword() {
     };
 
     let mut include_special = String::new();
-    print!("Include special characters? (y/n, default: y): ");
+    print!("Include special characters? (Y/n): ");
     io::stdout().flush().unwrap();
     io::stdin()
         .read_line(&mut include_special)
@@ -755,7 +808,7 @@ fn GeneratePassword() {
     println!("\nGenerated Password: {}", password);
 
     let mut save_option = String::new();
-    print!("Save this password to a new entry? (y/n): ");
+    print!("Save this password to a new entry? (y/N): ");
     io::stdout().flush().unwrap();
     io::stdin()
         .read_line(&mut save_option)
