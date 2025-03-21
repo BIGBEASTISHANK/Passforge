@@ -10,6 +10,7 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -37,6 +38,30 @@ struct PassFile {
 fn main() {
     // Variables
     let mut isProgramRunning: bool = true;
+
+    // Getting passfile location based on os
+    match global::current_OS {
+        "linux" => {
+            let home_dir = env::var("HOME").expect("Failed to get HOME environment variable");
+            let combined_path = format!("{}/.config/passforge/passfiles/", home_dir);
+            unsafe { global::passfileLocation = Some(combined_path) }
+        }
+        "windows" => {
+            let home_dir =
+                env::var("USERPROFILE").expect("Failed to get USERPROFILE environment variable");
+            let combined_path = format!("{}\\AppData\\Local\\passforge\\passfiles\\", home_dir);
+            unsafe { global::passfileLocation = Some(combined_path) }
+        }
+        "macos" => {
+            let home_dir = env::var("HOME").expect("Failed to get HOME environment variable");
+            let combined_path = format!(
+                "{}/Library/Application Support/passforge/passfiles/",
+                home_dir
+            );
+            unsafe { global::passfileLocation = Some(combined_path) }
+        }
+        _ => println!("Unknown OS detected!"),
+    }
 
     // Passfile selector
     PassfileSelector(&mut isProgramRunning);
@@ -78,7 +103,7 @@ fn PassfileSelector(isProgramRunning: &mut bool) {
     println!("Passfile Selector!");
     println!("1. Create a new passfile");
     println!("2. Open an existing passfile");
-    println!("3. Open file from default location (passfiles/default.pfg)");
+    println!("3. Open file from default location");
     println!("4. Exit");
     println!("----------------------------------");
 
@@ -143,10 +168,23 @@ fn CreateNewPassfile() {
     let encrypted_data = mc.encrypt_str_to_base64(&json_data);
 
     // Create directory if it doesn't exist
-    fs::create_dir_all("passfiles").expect("Failed to create directory");
+    fs::create_dir_all(unsafe {
+        global::passfileLocation
+            .as_ref()
+            .expect("Passfile location is None")
+    })
+    .expect("Failed to create directory");
 
     // Save to file
-    let filepath = format!("passfiles/{}.pfg", filename);
+    let filepath = format!(
+        "{}{}.pfg",
+        unsafe {
+            global::passfileLocation
+                .as_ref()
+                .expect("Passfile location is None")
+        },
+        filename
+    );
     let mut file = File::create(&filepath).expect("Failed to create file");
     file.write_all(encrypted_data.as_bytes())
         .expect("Failed to write to file");

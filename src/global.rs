@@ -2,17 +2,23 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 
+// Imports
+use std::env;
+
 // Global variables for Passforge
+pub static current_OS: &str = env::consts::OS;
+
+pub static mut passfileLocation: Option<String> = None;
 
 // Program version
-pub static programVersion: &str = "1.2.0";
+pub static programVersion: &str = "1.3.0";
 
 // Global application state
 pub static mut current_passfile: Option<String> = None;
 pub static mut encryption_password: Option<String> = None;
 
 // Safe accessor functions for global state (to handle unsafe properly)
-pub fn get_current_passfile() -> Option<String> {
+fn get_current_passfile() -> Option<String> {
     unsafe {
         current_passfile.clone()
     }
