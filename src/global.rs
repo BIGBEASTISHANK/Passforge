@@ -5,7 +5,7 @@
 // Global variables for Passforge
 
 // Program version
-pub static programVersion: &str = "1.0.0";
+pub static programVersion: &str = "1.2.0";
 
 // Global application state
 pub static mut current_passfile: Option<String> = None;

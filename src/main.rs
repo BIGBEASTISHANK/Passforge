@@ -4,19 +4,20 @@
 
 // Imports
 mod global;
-use std::fs;
-use std::io;
-use serde_json;
-use std::fs::File;
-use std::path::Path;
-use std::thread::sleep;
-use std::io::prelude::*;
-use std::time::Duration;
-use rand::{thread_rng, Rng};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use rand::distributions::Alphanumeric;
 use magic_crypt::{new_magic_crypt, MagicCryptTrait};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::collections::HashMap;
+use std::fs;
+use std::fs::File;
+use std::io;
+use std::io::prelude::*;
+use std::path::Path;
+use std::process::Command;
+use std::thread::sleep;
+use std::time::Duration;
 
 // Data structures
 #[derive(Serialize, Deserialize, Clone)]
@@ -37,14 +38,6 @@ fn main() {
     // Variables
     let mut isProgramRunning: bool = true;
 
-    // Title of the project
-    println!("###########################");
-    println!("## Welcome to Passforge! ##");
-    println!("##               V{}  ##", global::programVersion);
-    println!("###########################");
-    println!("");
-    sleep(Duration::from_secs(2));
-
     // Passfile selector
     PassfileSelector(&mut isProgramRunning);
 
@@ -56,10 +49,29 @@ fn main() {
 
 // Custom functions
 ////////////////////
+// Intro screen
+fn IntroScreen() {
+    // Clear terminal
+    Command::new("clear")
+        .spawn()
+        .expect("Failed to clear screen");
+    sleep(Duration::from_millis(200));
+
+    // Display intro
+    println!("###########################");
+    println!("## Welcome to Passforge! ##");
+    println!("##               V{}  ##", global::programVersion);
+    println!("###########################");
+    println!("");
+}
 // Passfile Selector
 fn PassfileSelector(isProgramRunning: &mut bool) {
     // Variables
     let mut passFileOptionSelection: String = String::new();
+
+    // Intro screen
+    IntroScreen();
+    sleep(Duration::from_secs(2));
 
     // Passfile options
     println!("----------------------------------");
@@ -96,10 +108,14 @@ fn PassfileSelector(isProgramRunning: &mut bool) {
 
 // Create new passfile
 fn CreateNewPassfile() {
+    // Intro screen
+    IntroScreen();
+
     println!("Creating a new passfile!");
+    println!("----------------------------------");
 
     let mut filename = String::new();
-    print!("Enter passfile name: ");
+    print!("Create passfile name: ");
     io::stdout().flush().unwrap();
     io::stdin()
         .read_line(&mut filename)
@@ -107,7 +123,7 @@ fn CreateNewPassfile() {
     let filename = filename.trim().to_string();
 
     let mut password = String::new();
-    print!("Enter encryption password: ");
+    print!("Create encryption password: ");
     io::stdout().flush().unwrap();
     io::stdin()
         .read_line(&mut password)
@@ -140,11 +156,17 @@ fn CreateNewPassfile() {
         global::current_passfile = Some(filepath);
         global::encryption_password = Some(password);
     }
+
+    sleep(Duration::from_secs(2));
 }
 
 // Open existing passfile
 fn OpenExistingPassfile() {
+    // Intro screen
+    IntroScreen();
+
     println!("Opening an existing passfile!");
+    println!("----------------------------------");
 
     let mut filepath = String::new();
     print!("Enter passfile path: ");
@@ -193,7 +215,11 @@ fn OpenExistingPassfile() {
 
 // Open default passfile
 fn OpenDefaultPassfile() {
+    // Intro screen
+    IntroScreen();
+
     println!("Opening file from default location!");
+    println!("--------------------------------------");
 
     let default_path = "passfiles/default.pfg";
 
@@ -269,6 +295,9 @@ fn OpenDefaultPassfile() {
 
 // Show main menu
 fn ShowMainMenu(isProgramRunning: &mut bool) {
+    // Intro screen
+    IntroScreen();
+
     if unsafe { global::current_passfile.is_none() } {
         println!("No passfile is open. Please open or create a passfile first.");
         PassfileSelector(isProgramRunning);
@@ -320,7 +349,11 @@ fn ShowMainMenu(isProgramRunning: &mut bool) {
 
 // Add new login
 fn AddNewLogin() {
+    // Intro screen
+    IntroScreen();
+
     println!("\nAdding a new login entry:");
+    println!("----------------------------------");
 
     let mut title = String::new();
     print!("Enter title: ");
@@ -411,18 +444,24 @@ fn AddNewLogin() {
 
 // Show all logins
 fn ShowAllLogins() {
+    // Intro screen
+    IntroScreen();
+
     if let Some(filepath) = unsafe { &global::current_passfile } {
         if let Some(password) = unsafe { &global::encryption_password } {
             if let Ok(encrypted_data) = fs::read_to_string(filepath) {
                 let mc = new_magic_crypt!(password, 256);
                 if let Ok(decrypted_data) = mc.decrypt_base64_to_string(&encrypted_data) {
                     if let Ok(passfile) = serde_json::from_str::<PassFile>(&decrypted_data) {
+                        println!("\n------ Stored Logins ------");
+
                         if passfile.entries.is_empty() {
+                            println!("");
                             println!("No entries found!");
+                            sleep(Duration::from_secs(2));
                             return;
                         }
 
-                        println!("\n------ Stored Logins ------");
                         let mut index = 1;
                         let titles: Vec<String> = passfile.entries.keys().cloned().collect();
 
@@ -446,6 +485,9 @@ fn ShowAllLogins() {
                             if num > 0 && num <= titles.len() {
                                 let title = &titles[num - 1];
                                 if let Some(entry) = passfile.entries.get(title) {
+                                    // Intro screen
+                                    IntroScreen();
+
                                     println!("\n------ {} ------", entry.title);
                                     println!("Username: {}", entry.username);
                                     println!("Password: {}", entry.password);
@@ -469,8 +511,9 @@ fn ShowAllLogins() {
                                         "1" => {
                                             // Copy to clipboard functionality would require additional crates
                                             println!(
-                                                "Password copied to clipboard! (Note: Actual clipboard functionality requires the 'clipboard' crate)"
+                                                "Clipboard copy function is under development!"
                                             );
+                                            sleep(Duration::from_secs(2));
                                         }
                                         "2" => {
                                             EditLoginEntry(&title);
@@ -504,6 +547,7 @@ fn EditLoginEntry(title: &str) {
                 if let Ok(decrypted_data) = mc.decrypt_base64_to_string(&encrypted_data) {
                     if let Ok(mut passfile) = serde_json::from_str::<PassFile>(&decrypted_data) {
                         if let Some(entry) = passfile.entries.get(title).cloned() {
+                            println!("----------------------------------");
                             println!("\nEditing entry: {}", title);
                             println!("(Press Enter to keep current value)");
 
@@ -637,7 +681,11 @@ fn DeleteLoginEntry(title: &str) {
 
 // Generate password
 fn GeneratePassword() {
+    // Intro screen
+    IntroScreen();
+
     println!("\nPassword Generator");
+    println!("----------------------------------");
 
     let mut length = String::new();
     print!("Enter password length (default: 16): ");
